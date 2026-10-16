@@ -329,6 +329,7 @@
                 autoPlayTimeout = null;
             }
 
+            // CREAZIONE DINAMICA PERCORSO AUDIO (es: HT1_cap1.mp3)
             currentActiveVolume.chapters = [];
             for (let i = 1; i <= vol.chapterCount; i++) {
                 currentActiveVolume.chapters.push(currentCategory + vol.id + '_cap' + i + '.mp3');
@@ -379,7 +380,7 @@
 
             narratorAudio.src = audioSrc;
             narratorAudio.play().catch(function(e) {
-                alert("File audio (" + audioSrc + ") non trovato. Assicurati di averlo caricato su GitHub!");
+                alert("File audio (" + audioSrc + ") non trovato su GitHub. Se lo hai caricato ora, attendi 2 minuti che i server di GitHub lo rendano pubblico!");
             });
         }
     </script>
