@@ -25,7 +25,7 @@
         .main-btn:active { transform: scale(0.95); }
         #lang-toggle { position: absolute; top: 20px; right: 20px; z-index: 15; }
 
-        /* Contenitore Pulsanti Enter Screen (LAYOUT 2 SOPRA, 1 CENTRATO SOTTO) */
+        /* Contenitore Pulsanti Enter Screen (2 SOPRA, 1 CENTRATO SOTTO) */
         .category-container { 
             display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; 
             width: 90%; max-width: 450px; margin-top: 80px; margin-bottom: 20px; 
@@ -43,17 +43,17 @@
         .search-container input { flex-grow: 1; padding: 10px; border-radius: 5px; border: 1px solid #d4af37; background: rgba(0,0,0,0.8); color: white; font-family: 'Georgia', serif; }
         
         .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; width: 90%; max-width: 500px; margin-top: 10px; margin-bottom: auto; }
-        .volume-card { background: rgba(0,0,0,0.9); border: 1px solid #d4af37; border-radius: 10px; text-align: center; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; height: 140px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
-        .volume-placeholder { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 5px; font-size: 0.9rem; color: #f0e6d2; }
+        .volume-card { position: relative; background: rgba(0,0,0,0.9); border: 2px solid #d4af37; border-radius: 10px; text-align: center; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; aspect-ratio: 9 / 16; box-shadow: 0 4px 10px rgba(0,0,0,0.8); }
+        .volume-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
         
         .pagination { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; width: 100%; }
 
         /* Schermata Singolo Volume */
         #volume-screen { background-color: #1a1a1a; background-image: none; }
-        .vol-large-img { width: 60%; max-width: 250px; height: auto; border: 3px solid #d4af37; border-radius: 10px; margin-top: 80px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.9); background-color: #333; min-height: 200px; }
-        .vol-title-text { font-size: 1.8rem; text-align: center; color: #d4af37; margin-bottom: 20px; padding: 0 15px; text-shadow: 1px 1px 3px black; }
+        .vol-large-img { width: 45%; max-width: 200px; aspect-ratio: 9 / 16; border: 3px solid #d4af37; border-radius: 10px; margin-top: 70px; margin-bottom: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.9); background-color: #222; background-size: cover; background-position: center; }
+        .vol-title-text { font-size: 1.6rem; text-align: center; color: #d4af37; margin-bottom: 15px; padding: 0 15px; text-shadow: 1px 1px 3px black; }
         
-        .chapter-list { width: 90%; max-width: 400px; overflow-y: auto; max-height: 45vh; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
+        .chapter-list { width: 90%; max-width: 400px; overflow-y: auto; max-height: 40vh; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
         .chapter-btn { width: 100%; padding: 15px; background: rgba(212, 175, 55, 0.2); color: #fff; border: 1px solid #d4af37; border-radius: 8px; cursor: pointer; font-family: 'Georgia', serif; font-size: 1.1rem; transition: background 0.3s; text-align: left; }
         .chapter-btn.playing { background: rgba(212, 175, 55, 0.7); font-weight: bold; }
         .chapter-btn:active { background: rgba(212, 175, 55, 0.5); }
@@ -61,14 +61,11 @@
 </head>
 <body>
 
-    <!-- Audio Player Nascosti -->
     <audio id="bg-music" src="Home.mp3" loop></audio>
     <audio id="narrator-audio"></audio>
 
-    <!-- 1. Intro Screen -->
     <div id="intro-screen" class="screen active"></div>
 
-    <!-- 2. Home Screen -->
     <div id="home-screen" class="screen">
         <button id="lang-toggle" class="icon-btn" onclick="toggleLanguage()">ITA / ENG</button>
         <div style="margin-top: auto; margin-bottom: 10vh; display: flex; justify-content: center; gap: 20px; width: 100%;">
@@ -77,7 +74,6 @@
         </div>
     </div>
 
-    <!-- 3. Enter Screen -->
     <div id="enter-screen" class="screen">
         <div class="top-bar">
             <button class="icon-btn" onclick="goToScreen('home-screen')" data-i18n="back">Back</button>
@@ -90,7 +86,6 @@
         </div>
     </div>
 
-    <!-- 4. Category Screen -->
     <div id="category-screen" class="screen">
         <div class="top-bar">
             <button class="icon-btn" onclick="goToScreen('enter-screen')" data-i18n="back">Back</button>
@@ -110,7 +105,6 @@
         </div>
     </div>
 
-    <!-- 5. Volume Screen -->
     <div id="volume-screen" class="screen">
         <div class="top-bar">
             <button class="icon-btn" onclick="goToScreen('category-screen')" data-i18n="back">Back</button>
@@ -124,7 +118,6 @@
     </div>
 
     <script>
-        // Variabili globali
         let autoPlayTimeout = null;
         let currentChapterIndex = 0;
         let isMusicPlaying = true;
@@ -156,12 +149,9 @@
             }
         };
 
-        // --- DATABASE SEMPLIFICATO ---
-        // Basta inserire id, title, e chapterCount (il numero totale di capitoli).
-        // Il codice calcolerà da solo i nomi dei file: es. HF1_cap1.mp3
         const database = {
             'HF': [
-                { id: 1, title: 'Alfonso I d\'Este', chapterCount: 4 },
+                { id: 1, title: 'Alfonso I d\'Este', chapterCount: 6 },
                 { id: 2, title: 'Giulio Cesare', chapterCount: 0 },
                 { id: 3, title: 'Marco Polo', chapterCount: 0 },
                 { id: 4, title: 'Cristoforo Colombo', chapterCount: 0 },
@@ -237,7 +227,6 @@
             if (isMusicPlaying) { bgMusic.play(); } else { bgMusic.pause(); }
         }
 
-        // DUCKING & AUTO-ADVANCE
         narratorAudio.addEventListener('play', function() { bgMusic.volume = 0.15; });
         narratorAudio.addEventListener('pause', function() { bgMusic.volume = 1.0; });
         narratorAudio.addEventListener('ended', function() {
@@ -278,7 +267,10 @@
                 const div = document.createElement('div');
                 div.className = 'volume-card';
                 div.onclick = (function(v) { return function() { openVolume(v, true); }; })(vol);
-                div.innerHTML = "<div class='volume-placeholder'>" + vol.title + "</div>";
+                
+                // Cerca la copertina specifica (es: HF1.png). Se non esiste, carica Intro.png come default!
+                const coverFileName = currentCategory + vol.id + '.png';
+                div.innerHTML = "<img src='" + coverFileName + "' alt='" + vol.title + "' onerror=\"this.src='Intro.png';\">";
                 grid.appendChild(div);
             }
         }
@@ -311,10 +303,21 @@
             renderGrid();
         }
 
-        // LOGICA SINGOLO VOLUME & GENERAZIONE NOMI FILE
         function openVolume(vol, shouldAutoPlay) {
             currentActiveVolume = vol;
             document.getElementById('vol-title').innerText = vol.title;
+            
+            // Imposta l'immagine grande nel reader: se non c'è la specifica, usa Intro.png di default
+            const coverFileName = currentCategory + vol.id + '.png';
+            const largeCover = document.getElementById('vol-cover');
+            largeCover.style.backgroundImage = "url('" + coverFileName + "')";
+            
+            // Un piccolo controllo per il fallback visivo del box grande se l'immagine manca
+            const tempImg = new Image();
+            tempImg.src = coverFileName;
+            tempImg.onerror = function() {
+                largeCover.style.backgroundImage = "url('Intro.png')";
+            };
             
             const list = document.getElementById('chapter-list');
             list.innerHTML = '';
@@ -324,8 +327,6 @@
                 autoPlayTimeout = null;
             }
 
-            // CREAZIONE AUTOMATICA ARRAY CAPITOLI
-            // Es: Se categoria = 'HF', id = 1, chapterCount = 4 -> Crea HF1_cap1.mp3, HF1_cap2.mp3, ecc.
             currentActiveVolume.chapters = [];
             for (let i = 1; i <= vol.chapterCount; i++) {
                 currentActiveVolume.chapters.push(currentCategory + vol.id + '_cap' + i + '.mp3');
