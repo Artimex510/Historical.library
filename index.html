@@ -18,6 +18,9 @@
         #home-screen { background-image: url('Home.png'); }
         #enter-screen { background-image: url('Enter.png'); }
         
+        /* Sfondo Schermata Categoria (Forzato) */
+        #category-screen { background-color: #1a1a1a; background-size: cover; background-position: center; background-repeat: no-repeat; }
+        
         /* Elementi UI */
         .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; z-index: 10; }
         .icon-btn { background: rgba(0,0,0,0.7); color: #d4af37; border: 1px solid #d4af37; border-radius: 8px; padding: 10px 15px; font-size: 1rem; cursor: pointer; text-transform: uppercase; font-family: 'Georgia', serif; }
@@ -158,10 +161,10 @@
                 { id: 5, title: 'Lorenzo De Medici', chapterCount: 0 }
             ],
             'HT': [
-                { id: 1, title: 'Roma Antica', chapterCount: 0 },
-                { id: 2, title: 'Firenze', chapterCount: 0 },
-                { id: 3, title: 'Venezia', chapterCount: 0 },
-                { id: 4, title: 'Ferrara', chapterCount: 0 }
+                { id: 1, title: 'Ferrara', chapterCount: 6 },
+                { id: 2, title: 'Roma Antica', chapterCount: 0 },
+                { id: 3, title: 'Firenze', chapterCount: 0 },
+                { id: 4, title: 'Venezia', chapterCount: 0 }
             ],
             'FB': [
                 { id: 1, title: 'Castello di Azzurrina', chapterCount: 0 },
@@ -172,7 +175,10 @@
         };
 
         const categoryBackgrounds = {
-            'HF': 'LibrarHF.png', 'HT': 'LibrarHT.png', 'FB': 'LibraryFB.png'
+            'HF': 'LibrarHF.png', 
+            'HT': 'LibrarHT.png', 
+            'LibraryFB': 'LibraryFB.png',
+            'FB': 'LibraryFB.png'
         };
 
         function toggleLanguage() {
@@ -198,6 +204,7 @@
                 autoPlayTimeout = null;
             }
             narratorAudio.pause(); 
+            bgMusic.volume = 1.0; // Riporta la musica a volume pieno se si cambia schermata
             
             const screens = document.querySelectorAll('.screen');
             for (let i = 0; i < screens.length; i++) { screens[i].classList.remove('active'); }
@@ -227,22 +234,22 @@
             if (isMusicPlaying) { bgMusic.play(); } else { bgMusic.pause(); }
         }
 
-        narratorAudio.addEventListener('play', function() { bgMusic.volume = 0.15; });
-        narratorAudio.addEventListener('pause', function() { bgMusic.volume = 1.0; });
+        // GESTIONE FINE CAPITOLO (PLAYLIST AUTOMATICA)
         narratorAudio.addEventListener('ended', function() {
             if (currentActiveVolume !== null && currentChapterIndex + 1 < currentActiveVolume.chapters.length) {
                 playChapter(currentChapterIndex + 1);
             } else {
-                bgMusic.volume = 1.0; 
+                bgMusic.volume = 1.0; // Torna al 100% solo alla fine dell'ultimo capitolo
             }
         });
 
         function openCategory(cat) {
             currentCategory = cat;
             currentPage = 0;
+            
+            const bgFileName = categoryBackgrounds[cat];
             const catScreen = document.getElementById('category-screen');
-            catScreen.style.backgroundImage = 'url("' + categoryBackgrounds[cat] + '")';
-            catScreen.style.backgroundColor = '#1a1a1a';
+            catScreen.style.backgroundImage = "url('" + bgFileName + "')";
             
             let vols = [];
             if (database !== null && database !== undefined) {
@@ -268,7 +275,6 @@
                 div.className = 'volume-card';
                 div.onclick = (function(v) { return function() { openVolume(v, true); }; })(vol);
                 
-                // Cerca la copertina specifica (es: HF1.png). Se non esiste, carica Intro.png come default!
                 const coverFileName = currentCategory + vol.id + '.png';
                 div.innerHTML = "<img src='" + coverFileName + "' alt='" + vol.title + "' onerror=\"this.src='Intro.png';\">";
                 grid.appendChild(div);
@@ -307,12 +313,10 @@
             currentActiveVolume = vol;
             document.getElementById('vol-title').innerText = vol.title;
             
-            // Imposta l'immagine grande nel reader: se non c'è la specifica, usa Intro.png di default
             const coverFileName = currentCategory + vol.id + '.png';
             const largeCover = document.getElementById('vol-cover');
             largeCover.style.backgroundImage = "url('" + coverFileName + "')";
             
-            // Un piccolo controllo per il fallback visivo del box grande se l'immagine manca
             const tempImg = new Image();
             tempImg.src = coverFileName;
             tempImg.onerror = function() {
@@ -364,6 +368,11 @@
             
             currentChapterIndex = index;
             const audioSrc = currentActiveVolume.chapters[index];
+            
+            // DUCKING FORZATO: Abbassa la musica di sottofondo istantaneamente
+            if (isMusicPlaying) {
+                bgMusic.volume = 0.15;
+            }
             
             const allBtns = document.querySelectorAll('.chapter-btn');
             for (let i = 0; i < allBtns.length; i++) { allBtns[i].classList.remove('playing'); }
