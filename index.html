@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Audio library of Italian history</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        parchment: '#fdf5e6',
+                        gold: '#d4af37',
+                        'gold-dark': '#aa8c2c',
+                        wood: '#4a2f1d',
+                        'wood-dark': '#2c1c11',
+                    },
+                    fontFamily: {
+                        title: ['Cinzel', 'serif'],
+                        body: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #1a0f0a; /* Dark background as fallback */
+            color: #fdf5e6;
+            overflow: hidden; /* Prevent body scrolling */
+            font-family: 'Playfair Display', serif;
+            touch-action: pan-y; /* Allow vertical scroll, handle horizontal in JS */
+        }
+        
+        .screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background-color: #2c1c11; /* Fallback for backgrounds */
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            opacity: 1;
+        }
+
+        /* Custom Scrollbar for elegant look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2c1c11; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d4af37; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #aa8c2c; 
+        }
+
+        .glass-panel {
+            background: rgba(44, 28, 17, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid #d4af37;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-gold {
+            background: linear-gradient(to bottom, #d4af37, #aa8c2c);
+            color: #2c1c11;
+            border: 2px solid #fdf5e6;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+        }
+        
+        .btn-gold:hover {
+            background: linear-gradient(to bottom, #fdf5e6, #d4af37);
+            box-shadow: 0 0 15px #d4af37;
+        }
+
+        .btn-gold:active {
+            transform: scale(0.95);
+        }
+
+        .book-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+        .book-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
+        }
+
+        .chapter-btn {
+            background: rgba(253, 245, 230, 0.1);
+            border-bottom: 1px solid #d4af37;
+            transition: background 0.2s;
+        }
+        .chapter-btn:hover {
+            background: rgba(212, 175, 55, 0.3);
+        }
+        
+        .playing-indicator {
+            color: #d4af37;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Background placehoders mappings */
+        #splash-screen { background-image: url('https://placehold.co/1080x1920/2c1c11/d4af37?text=Intro.png'); }
+        #home-screen { background-image: url('https://placehold.co/1080x1920/2c1c11/d4af37?text=Home_bg.png'); }
+        #main-menu-screen { background-image: url('https://placehold.co/1080x1920/2c1c11/d4af37?text=Enter.png'); }
+        /* Library backgrounds are applied dynamically via JS */
+    </style>
+</head>
+<body>
+
+    <!-- AUDIO PLAYERS -->
+    <!-- Mettiamo loop per la musica di sottofondo -->
+    <audio id="bg-music" loop>
+        <source src="Home.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="chapter-audio"></audio>
+
+    <!-- GLOBAL UI (Back & Mute) -->
+    <div id="global-ui" class="fixed top-0 w-full z-50 p-4 flex justify-between items-center pointer-events-none hidden">
+        <button id="btn-back" class="pointer-events-auto btn-gold rounded-full w-12 h-12 flex items-center justify-center text-xl shadow-lg" onclick="goBack()">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <button id="btn-mute" class="pointer-events-auto btn-gold rounded-full w-12 h-12 flex items-center justify-center text-xl shadow-lg" onclick="toggleMute()">
+            <i id="mute-icon" class="fas fa-music"></i>
+        </button>
+    </div>
+
+    <!-- 1. SPLASH SCREEN -->
+    <div id="splash-screen" class="screen active justify-center items-center">
+        <!-- Intro.png background will show -->
+        <h1 class="font-title text-4xl text-gold shadow-black drop-shadow-lg text-center px-4">Caricamento in corso...</h1>
+    </div>
+
+    <!-- 2. HOME SCREEN -->
+    <div id="home-screen" class="screen justify-center items-center">
+        <div class="glass-panel p-8 rounded-xl text-center max-w-md mx-4">
+            <h1 class="font-title text-3xl md:text-5xl text-gold mb-8 drop-shadow-md">Audio library of Italian history</h1>
+            <div class="flex flex-col gap-4">
+                <button onclick="enterApp()" class="btn-gold py-4 px-8 rounded-lg text-xl">Enter</button>
+                <button onclick="exitApp()" class="btn-gold py-4 px-8 rounded-lg text-xl opacity-80">Exit</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. MAIN MENU SCREEN -->
+    <div id="main-menu-screen" class="screen items-center pt-24 pb-8 px-4">
+        <!-- Search Bar -->
+        <div class="w-full max-w-2xl mb-8 glass-panel rounded-full p-2 flex items-center">
+            <i class="fas fa-search text-gold ml-4"></i>
+            <input type="text" id="search-input" placeholder="Search volumes..." class="bg-transparent text-parchment outline-none w-full px-4 font-body placeholder-gold-dark" onkeyup="handleSearch(event)">
+            <button onclick="executeSearch()" class="btn-gold px-4 py-2 rounded-full text-sm">Search</button>
+        </div>
+
+        <h2 class="font-title text-3xl text-gold mb-8 text-center bg-black bg-opacity-50 px-6 py-2 rounded-lg">Select a Category</h2>
+        
+        <div class="flex flex-col md:flex-row gap-8 w-full max-w-5xl justify-center items-center">
+            <!-- Category Cards -->
+            <div class="book-card relative w-64 h-80 rounded-xl overflow-hidden glass-panel border-4 border-gold" onclick="openLibrary('HF')">
+                <img src="https://placehold.co/400x500/4a2f1d/d4af37?text=HF.png" alt="Historical Figures" class="w-full h-full object-cover">
+                <div class="absolute bottom-0 w-full bg-black bg-opacity-70 p-4 text-center">
+                    <h3 class="font-title text-xl text-gold">Historical figures</h3>
+                </div>
+            </div>
+
+            <div class="book-card relative w-64 h-80 rounded-xl overflow-hidden glass-panel border-4 border-gold" onclick="openLibrary('HT')">
+                <img src="https://placehold.co/400x500/4a2f1d/d4af37?text=HT.png" alt="History of the towns" class="w-full h-full object-cover">
+                <div class="absolute bottom-0 w-full bg-black bg-opacity-70 p-4 text-center">
+                    <h3 class="font-title text-xl text-gold">History of the towns</h3>
+                </div>
+            </div>
+
+            <div class="book-card relative w-64 h-80 rounded-xl overflow-hidden glass-panel border-4 border-gold" onclick="openLibrary('FB')">
+                <img src="https://placehold.co/400x500/4a2f1d/d4af37?text=FB.png" alt="Folk beliefs" class="w-full h-full object-cover">
+                <div class="absolute bottom-0 w-full bg-black bg-opacity-70 p-4 text-center">
+                    <h3 class="font-title text-xl text-gold">Folk beliefs</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. LIBRARY SCREEN -->
+    <div id="library-screen" class="screen items-center pt-20 pb-8 px-4 flex-col justify-between">
+        <div class="w-full max-w-4xl text-center mb-4">
+            <h2 id="library-title" class="font-title text-3xl md:text-5xl text-gold bg-black bg-opacity-60 inline-block px-8 py-2 rounded-lg border border-gold shadow-lg">Category Title</h2>
+            <p id="search-info" class="text-parchment mt-2 hidden text-lg bg-black bg-opacity-50 inline-block px-4 rounded"></p>
+        </div>
+
+        <!-- Grid 3x3 -->
+        <div id="library-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 w-full max-w-4xl flex-grow place-content-center touch-pan-y">
+            <!-- Contenuto generato da JS -->
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination-controls" class="w-full max-w-md flex justify-between items-center mt-6 glass-panel rounded-full px-6 py-2">
+            <button onclick="changePage(-1)" id="btn-prev-page" class="text-gold text-2xl hover:text-white disabled:opacity-50"><i class="fas fa-chevron-left"></i></button>
+            <span id="page-indicator" class="font-title text-xl text-parchment">Page 1 of X</span>
+            <button onclick="changePage(1)" id="btn-next-page" class="text-gold text-2xl hover:text-white disabled:opacity-50"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <p class="text-gray-400 text-xs mt-2 italic">You can also swipe left/right to change pages</p>
+    </div>
+
+    <!-- 5. VOLUME VIEW SCREEN -->
+    <div id="volume-screen" class="screen items-center pt-24 pb-8 px-4">
+        <div class="w-full max-w-4xl glass-panel rounded-2xl p-6 md:p-10 flex flex-col md:flex-row gap-8 shadow-2xl">
+            <!-- Immagine Volume -->
+            <div class="w-full md:w-1/3 flex flex-col items-center">
+                <img id="volume-image" src="" alt="Volume Cover" class="w-full max-w-xs rounded-lg shadow-lg border-2 border-gold mb-4">
+                <h2 id="volume-title" class="font-title text-2xl text-center text-gold">Volume Title</h2>
+                <p id="volume-category-text" class="text-sm text-gray-300 font-title uppercase tracking-wider text-center mt-2"></p>
+            </div>
+            
+            <!-- Lista Capitoli -->
+            <div class="w-full md:w-2/3 flex flex-col h-full max-h-[60vh]">
+                <h3 class="font-title text-xl text-parchment mb-4 border-b border-gold pb-2">Chapters</h3>
+                
+                <div id="chapters-list" class="flex-grow overflow-y-auto pr-2">
+                    <!-- Capitoli generati da JS -->
+                </div>
+
+                <!-- Custom Audio Player Controller visual (Optional feedback) -->
+                <div id="now-playing-box" class="mt-4 p-4 rounded-lg bg-black bg-opacity-50 border border-gold-dark hidden flex justify-between items-center">
+                    <div class="flex flex-col">
+                        <span class="text-xs text-gold uppercase">Now Playing</span>
+                        <span id="now-playing-title" class="text-parchment font-semibold"></span>
+                    </div>
+                    <button onclick="stopAudio()" class="text-red-400 hover:text-red-300 text-2xl">
+                        <i class="fas fa-stop-circle"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MOCK DATA ---
+        // Generiamo dati fittizi. Nomi file strutturati come richiesto.
+        const mockData = {
+            HF: [],
+            HT: [],
+            FB: []
+        };
+
+        // Genera 12 volumi per HF (Historical figures) per testare l'impaginazione
+        for (let i = 1; i <= 12; i++) {
+            let chapters = [];
+            for (let j = 1; j <= 5; j++) {
+                chapters.push({ title: `Chapter ${j}`, file: `HF_volume${i}_cap${j}.mp3` });
+            }
+            mockData.HF.push({
+                id: `HF_v${i}`,
+                title: `Historical Figure Vol. ${i}`,
+                image: `https://placehold.co/300x450/4a2f1d/d4af37?text=HF_volume${i}.png`,
+                category: 'HF',
+                chapters: chapters
+            });
+        }
+
+        // Genera 5 volumi per HT (History of the towns)
+        for (let i = 1; i <= 5; i++) {
+            let chapters = [];
+            for (let j = 1; j <= 3; j++) {
+                chapters.push({ title: `Chapter ${j}`, file: `HT_volume${i}_cap${j}.mp3` });
+            }
+            mockData.HT.push({
+                id: `HT_v${i}`,
+                title: `History of Towns Vol. ${i}`,
+                image: `https://placehold.co/300x450/4a2f1d/d4af37?text=HT_volume${i}.png`,
+                category: 'HT',
+                chapters: chapters
+            });
+        }
+
+        // Genera 5 volumi per FB (Folk beliefs)
+        for (let i = 1; i <= 5; i++) {
+            let chapters = [];
+            for (let j = 1; j <= 4; j++) {
+                chapters.push({ title: `Chapter ${j}`, file: `FB_volume${i}_cap${j}.mp3` });
+            }
+            mockData.FB.push({
+                id: `FB_v${i}`,
+                title: `Folk Beliefs Vol. ${i}`,
+                image: `https://placehold.co/300x450/4a2f1d/d4af37?text=FB_volume${i}.png`,
+                category: 'FB',
+                chapters: chapters
+            });
+        }
+
+        const categoryNames = {
+            'HF': 'Historical figures',
+            'HT': 'History of the towns',
+            'FB': 'Folk beliefs'
+        };
+
+        const categoryBackgrounds = {
+            'HF': "url('https://placehold.co/1080x1920/2c1c11/d4af37?text=LibraryHF.png')",
+            'HT': "url('https://placehold.co/1080x1920/2c1c11/d4af37?text=LibraryHT.png')",
+            'FB': "url('https://placehold.co/1080x1920/2c1c11/d4af37?text=LibraryFB.png')"
+        };
+
+        // --- STATE MANAGEMENT ---
+        let currentScreen = 'splash-screen';
+        let navigationHistory = [];
+        let isMusicMuted = false;
+        
+        let currentCategory = '';
+        let currentLibraryItems = [];
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 9; // 3x3 grid
+        
+        let activeAudioItem = null;
+
+        // --- DOM ELEMENTS ---
+        const bgMusic = document.getElementById('bg-music');
+        const chapterAudio = document.getElementById('chapter-audio');
+        const globalUi = document.getElementById('global-ui');
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            // Splash screen per 5 secondi
+            setTimeout(function() {
+                navigateTo('home-screen', false);
+            }, 5000);
+            
+            setupSwipeGestures();
+            setupAudioDucking();
+        };
+
+        // --- NAVIGATION LOGIC ---
+        function navigateTo(screenId, pushToHistory) {
+            // Nascondi schermo corrente
+            const currentEl = document.getElementById(currentScreen);
+            if (currentEl) {
+                currentEl.classList.remove('active');
+            }
+
+            // Aggiorna history
+            if (pushToHistory !== false && currentScreen !== 'splash-screen' && currentScreen !== 'home-screen') {
+                navigationHistory.push(currentScreen);
+            }
+            if (screenId === 'home-screen') {
+                navigationHistory = []; // Reset history at home
+            }
+
+            // Mostra nuovo schermo
+            const nextEl = document.getElementById(screenId);
+            if (nextEl) {
+                nextEl.classList.add('active');
+                currentScreen = screenId;
+            }
+
+            // Gestione UI Globale (Tasti)
+            if (screenId === 'splash-screen' || screenId === 'home-screen') {
+                globalUi.classList.add('hidden');
+            } else {
+                globalUi.classList.remove('hidden');
+                
+                // Mostra nascondi tasto back in base alla history
+                const btnBack = document.getElementById('btn-back');
+                if (btnBack) {
+                    if (navigationHistory.length > 0) {
+                        btnBack.style.visibility = 'visible';
+                    } else {
+                        btnBack.style.visibility = 'hidden';
+                    }
+                }
+            }
+        }
+
+        function goBack() {
+            if (navigationHistory && navigationHistory.length > 0) {
+                const prevScreen = navigationHistory.pop();
+                
+                // Nascondi schermo corrente
+                const currentEl = document.getElementById(currentScreen);
+                if (currentEl) {
+                    currentEl.classList.remove('active');
+                }
+                
+                // Ferma l'audio del capitolo se torno indietro
+                stopAudio();
+
+                // Ripristina lo schermo precedente senza aggiungerlo di nuovo all'history
+                const prevEl = document.getElementById(prevScreen);
+                if (prevEl) {
+                    prevEl.classList.add('active');
+                    currentScreen = prevScreen;
+                }
+                
+                // Aggiorna visibilità tasto back
+                const btnBack = document.getElementById('btn-back');
+                if (btnBack) {
+                    if (navigationHistory.length > 0) {
+                        btnBack.style.visibility = 'visible';
+                    } else {
+                        btnBack.style.visibility = 'hidden';
+                    }
+                }
+            } else {
+                navigateTo('home-screen', false);
+            }
+        }
+
+        function enterApp() {
+            navigateTo('main-menu-screen');
+            // Prova a far partire la musica (richiede interazione utente precedente in molti browser, 'Enter' funziona)
+            playBgMusic();
+        }
+
+        function exitApp() {
+            // I browser impediscono window.close() su finestre non aperte via script.
+            // Ripristiniamo all'home screen e resettiamo l'audio per simulare la chiusura.
+            alert("Exiting application... (Closing tab may be blocked by browser. Returning to Splash.)");
+            pauseBgMusic();
+            stopAudio();
+            navigateTo('splash-screen', false);
+            setTimeout(function() {
+                navigateTo('home-screen', false);
+            }, 2000);
+        }
+
+        // --- LIBRARY LOGIC ---
+        function openLibrary(categoryCode) {
+            currentCategory = categoryCode;
+            currentLibraryItems = mockData[categoryCode];
+            
+            // Verifica che i dati esistano
+            if (!currentLibraryItems) {
+                currentLibraryItems = [];
+            }
+            
+            currentPage = 1;
+            
+            // Imposta background
+            const libraryScreen = document.getElementById('library-screen');
+            if (libraryScreen && categoryBackgrounds[categoryCode]) {
+                libraryScreen.style.backgroundImage = categoryBackgrounds[categoryCode];
+            }
+
+            // Imposta titolo
+            const titleEl = document.getElementById('library-title');
+            if (titleEl && categoryNames[categoryCode]) {
+                titleEl.innerText = categoryNames[categoryCode];
+            }
+            
+            const searchInfoEl = document.getElementById('search-info');
+            if (searchInfoEl) {
+                searchInfoEl.classList.add('hidden');
+            }
+
+            renderLibraryGrid();
+            navigateTo('library-screen');
+        }
+
+        function renderLibraryGrid() {
+            const gridEl = document.getElementById('library-grid');
+            const pageIndEl = document.getElementById('page-indicator');
+            const btnPrev = document.getElementById('btn-prev-page');
+            const btnNext = document.getElementById('btn-next-page');
+
+            if (!gridEl) return;
+
+            gridEl.innerHTML = '';
+
+            if (currentLibraryItems.length === 0) {
+                gridEl.innerHTML = '<p class="text-white col-span-full text-center text-xl">No volumes found.</p>';
+                if (pageIndEl) pageIndEl.innerText = 'Page 1 of 1';
+                if (btnPrev) btnPrev.disabled = true;
+                if (btnNext) btnNext.disabled = true;
+                return;
+            }
+
+            const totalPages = Math.ceil(currentLibraryItems.length / ITEMS_PER_PAGE);
+            
+            // Controllo limiti pagina
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, currentLibraryItems.length);
+
+            for (let i = startIndex; i < endIndex; i++) {
+                const vol = currentLibraryItems[i];
+                if (vol) {
+                    const card = document.createElement('div');
+                    card.className = 'book-card flex flex-col items-center glass-panel p-2 rounded-lg';
+                    // Passiamo stringhe per evitare problemi di scope nei handler
+                    card.onclick = function() { openVolume(vol.id); };
+                    
+                    const img = document.createElement('img');
+                    img.src = vol.image;
+                    img.alt = vol.title;
+                    img.className = 'w-24 h-32 md:w-32 md:h-44 object-cover rounded shadow-md mb-2 border border-gold';
+                    
+                    const title = document.createElement('p');
+                    title.className = 'text-parchment font-title text-xs md:text-sm text-center leading-tight h-8 overflow-hidden';
+                    title.innerText = vol.title;
+
+                    card.appendChild(img);
+                    card.appendChild(title);
+                    gridEl.appendChild(card);
+                }
+            }
+
+            // Aggiorna controlli
+            if (pageIndEl) {
+                pageIndEl.innerText = 'Page ' + currentPage + ' of ' + totalPages;
+            }
+            if (btnPrev) {
+                btnPrev.disabled = currentPage === 1;
+            }
+            if (btnNext) {
+                btnNext.disabled = currentPage === totalPages;
+            }
+        }
+
+        function changePage(direction) {
+            const totalPages = Math.ceil(currentLibraryItems.length / ITEMS_PER_PAGE);
+            const newPage = currentPage + direction;
+            
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderLibraryGrid();
+            }
+        }
+
+        // --- SEARCH LOGIC ---
+        function handleSearch(event) {
+            if (event && event.key === 'Enter') {
+                executeSearch();
+            }
+        }
+
+        function executeSearch() {
+            const inputEl = document.getElementById('search-input');
+            if (!inputEl) return;
+            
+            const query = inputEl.value.trim().toLowerCase();
+            if (query === '') return;
+
+            // Cerca in tutte le categorie
+            let results = [];
+            const categories = ['HF', 'HT', 'FB'];
+            
+            for (let i = 0; i < categories.length; i++) {
+                const cat = categories[i];
+                const items = mockData[cat];
+                if (items) {
+                    for (let j = 0; j < items.length; j++) {
+                        const item = items[j];
+                        if (item && item.title && item.title.toLowerCase().includes(query)) {
+                            results.push(item);
+                        }
+                    }
+                }
+            }
+
+            currentLibraryItems = results;
+            currentPage = 1;
+            currentCategory = 'Search'; // Fake category
+
+            // Imposta UI per risultati ricerca
+            const libraryScreen = document.getElementById('library-screen');
+            if (libraryScreen) {
+                // Background generico per ricerca
+                libraryScreen.style.backgroundImage = "url('https://placehold.co/1080x1920/2c1c11/d4af37?text=Search_Results.png')";
+            }
+
+            const titleEl = document.getElementById('library-title');
+            if (titleEl) {
+                titleEl.innerText = "Search Results";
+            }
+            
+            const searchInfoEl = document.getElementById('search-info');
+            if (searchInfoEl) {
+                searchInfoEl.innerText = 'Found ' + results.length + ' volumes for "' + query + '"';
+                searchInfoEl.classList.remove('hidden');
+            }
+
+            renderLibraryGrid();
+            navigateTo('library-screen');
+            inputEl.value = ''; // Pulisce input
+        }
+
+        // --- VOLUME LOGIC ---
+        function findVolumeById(id) {
+            const categories = ['HF', 'HT', 'FB'];
+            for (let i = 0; i < categories.length; i++) {
+                const items = mockData[categories[i]];
+                if (items) {
+                    for (let j = 0; j < items.length; j++) {
+                        if (items[j] && items[j].id === id) {
+                            return items[j];
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function openVolume(volId) {
+            const vol = findVolumeById(volId);
+            if (!vol) return;
+
+            // Popola UI
+            const imgEl = document.getElementById('volume-image');
+            if (imgEl) imgEl.src = vol.image;
+            
+            const titleEl = document.getElementById('volume-title');
+            if (titleEl) titleEl.innerText = vol.title;
+            
+            const catEl = document.getElementById('volume-category-text');
+            if (catEl && vol.category && categoryNames[vol.category]) {
+                catEl.innerText = categoryNames[vol.category];
+            }
+
+            const listEl = document.getElementById('chapters-list');
+            if (listEl) {
+                listEl.innerHTML = '';
+                if (vol.chapters && vol.chapters.length > 0) {
+                    for (let i = 0; i < vol.chapters.length; i++) {
+                        const cap = vol.chapters[i];
+                        if (cap) {
+                            const btn = document.createElement('button');
+                            btn.className = 'chapter-btn w-full text-left py-4 px-4 flex justify-between items-center group';
+                            
+                            const leftDiv = document.createElement('div');
+                            
+                            const titleSpan = document.createElement('span');
+                            titleSpan.className = 'text-parchment font-body text-lg group-hover:text-gold transition-colors';
+                            titleSpan.innerText = cap.title;
+                            
+                            const fileSpan = document.createElement('span');
+                            fileSpan.className = 'block text-xs text-gray-400 mt-1';
+                            fileSpan.innerText = cap.file; // Mostra il nome del file come da richiesta
+
+                            const icon = document.createElement('i');
+                            icon.className = 'fas fa-play-circle text-gold text-2xl group-hover:scale-110 transition-transform';
+                            icon.id = 'icon-' + cap.file.replace(/\./g, '-');
+
+                            leftDiv.appendChild(titleSpan);
+                            leftDiv.appendChild(fileSpan);
+                            
+                            btn.appendChild(leftDiv);
+                            btn.appendChild(icon);
+
+                            btn.onclick = function() {
+                                playChapter(cap.file, cap.title, icon.id);
+                            };
+
+                            listEl.appendChild(btn);
+                        }
+                    }
+                } else {
+                    listEl.innerHTML = '<p class="text-gray-400 italic">No chapters available.</p>';
+                }
+            }
+
+            navigateTo('volume-screen');
+        }
+
+        // --- AUDIO LOGIC ---
+        function toggleMute() {
+            isMusicMuted = !isMusicMuted;
+            const icon = document.getElementById('mute-icon');
+            
+            if (isMusicMuted) {
+                bgMusic.volume = 0;
+                if (icon) {
+                    icon.classList.remove('fa-music');
+                    icon.classList.add('fa-volume-mute');
+                }
+            } else {
+                // Se l'audio del capitolo sta suonando, ripristina al volume ridotto (ducking)
+                if (chapterAudio && !chapterAudio.paused) {
+                    bgMusic.volume = 0.1;
+                } else {
+                    bgMusic.volume = 1.0;
+                }
+                if (icon) {
+                    icon.classList.remove('fa-volume-mute');
+                    icon.classList.add('fa-music');
+                }
+                playBgMusic(); // Assicura che parta se era stata bloccata dal browser
+            }
+        }
+
+        function playBgMusic() {
+            if (bgMusic && bgMusic.paused && !isMusicMuted) {
+                const playPromise = bgMusic.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(function(error) {
+                        console.log("Background music play prevented:", error);
+                    });
+                }
+            }
+        }
+
+        function pauseBgMusic() {
+            if (bgMusic && !bgMusic.paused) {
+                bgMusic.pause();
+            }
+        }
+
+        function setupAudioDucking() {
+            if (chapterAudio && bgMusic) {
+                // Quando il capitolo parte, abbassa la musica
+                chapterAudio.addEventListener('play', function() {
+                    if (!isMusicMuted) {
+                        bgMusic.volume = 0.1;
+                    }
+                });
+
+                // Quando il capitolo si ferma o è in pausa, alza la musica
+                chapterAudio.addEventListener('pause', function() {
+                    if (!isMusicMuted) {
+                        bgMusic.volume = 1.0;
+                    }
+                });
+                
+                chapterAudio.addEventListener('ended', function() {
+                    if (!isMusicMuted) {
+                        bgMusic.volume = 1.0;
+                    }
+                    stopAudio(); // Resetta UI
+                });
+            }
+        }
+
+        function playChapter(file, title, iconId) {
+            if (chapterAudio) {
+                // Mostra UI "Now Playing"
+                const box = document.getElementById('now-playing-box');
+                const titleSpan = document.getElementById('now-playing-title');
+                if (box && titleSpan) {
+                    titleSpan.innerText = title;
+                    box.classList.remove('hidden');
+                }
+
+                // Reset all icons
+                const allIcons = document.querySelectorAll('.chapter-btn i');
+                for (let i = 0; i < allIcons.length; i++) {
+                    if (allIcons[i]) {
+                        allIcons[i].className = 'fas fa-play-circle text-gold text-2xl group-hover:scale-110 transition-transform';
+                    }
+                }
+
+                // Animate current icon
+                const currentIcon = document.getElementById(iconId);
+                if (currentIcon) {
+                    currentIcon.className = 'fas fa-volume-up text-gold text-2xl playing-indicator';
+                }
+
+                chapterAudio.src = file;
+                const playPromise = chapterAudio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(function(error) {
+                        console.warn("Audio file not found (Expected in Preview environment). File requested:", file);
+                        alert("Simulazione: riproduzione di " + file + " (File non fisicamente presente in questa demo).");
+                        
+                        // Poiché il file non c'è, simuliamo il ducking abbassando manualmente la musica per 5 secondi
+                        if (!isMusicMuted && bgMusic) {
+                            bgMusic.volume = 0.1;
+                            setTimeout(function() {
+                                if (!isMusicMuted) bgMusic.volume = 1.0;
+                                stopAudio();
+                            }, 5000);
+                        }
+                    });
+                }
+            }
+        }
+
+        function stopAudio() {
+            if (chapterAudio) {
+                chapterAudio.pause();
+                chapterAudio.currentTime = 0;
+            }
+            
+            const box = document.getElementById('now-playing-box');
+            if (box) {
+                box.classList.add('hidden');
+            }
+
+            const allIcons = document.querySelectorAll('.chapter-btn i');
+            for (let i = 0; i < allIcons.length; i++) {
+                if (allIcons[i]) {
+                    allIcons[i].className = 'fas fa-play-circle text-gold text-2xl group-hover:scale-110 transition-transform';
+                }
+            }
+        }
+
+        // --- SWIPE GESTURES FOR LIBRARY ---
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const swipeThreshold = 50;
+
+        function setupSwipeGestures() {
+            const libraryScreen = document.getElementById('library-screen');
+            if (libraryScreen) {
+                libraryScreen.addEventListener('touchstart', function(e) {
+                    if (e && e.changedTouches && e.changedTouches.length > 0) {
+                        touchStartX = e.changedTouches[0].screenX;
+                    }
+                }, {passive: true});
+
+                libraryScreen.addEventListener('touchend', function(e) {
+                    if (e && e.changedTouches && e.changedTouches.length > 0) {
+                        touchEndX = e.changedTouches[0].screenX;
+                        handleSwipe();
+                    }
+                }, {passive: true});
+            }
+        }
+
+        function handleSwipe() {
+            if (currentScreen === 'library-screen') {
+                if (touchEndX < touchStartX - swipeThreshold) {
+                    // Swipe a sinistra -> Prossima pagina
+                    changePage(1);
+                }
+                if (touchEndX > touchStartX + swipeThreshold) {
+                    // Swipe a destra -> Pagina precedente
+                    changePage(-1);
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
