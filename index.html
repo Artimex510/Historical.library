@@ -124,7 +124,7 @@
     </div>
 
     <script>
-        // Variabili globali per l'audio e l'autoplay
+        // Variabili globali
         let autoPlayTimeout = null;
         let currentChapterIndex = 0;
         let isMusicPlaying = true;
@@ -156,25 +156,28 @@
             }
         };
 
+        // --- DATABASE SEMPLIFICATO ---
+        // Basta inserire id, title, e chapterCount (il numero totale di capitoli).
+        // Il codice calcolerà da solo i nomi dei file: es. HF1_cap1.mp3
         const database = {
             'HF': [
-                { title: 'Alfonso I d\'Este', chapters: ['HF_volume1_cap1.mp3', 'HF_volume1_cap2.mp3', 'HF_volume1_cap3.mp3', 'HF_volume1_cap4.mp3'] },
-                { title: 'Giulio Cesare', chapters: [] },
-                { title: 'Marco Polo', chapters: [] },
-                { title: 'Cristoforo Colombo', chapters: [] },
-                { title: 'Lorenzo De Medici', chapters: [] }
+                { id: 1, title: 'Alfonso I d\'Este', chapterCount: 4 },
+                { id: 2, title: 'Giulio Cesare', chapterCount: 0 },
+                { id: 3, title: 'Marco Polo', chapterCount: 0 },
+                { id: 4, title: 'Cristoforo Colombo', chapterCount: 0 },
+                { id: 5, title: 'Lorenzo De Medici', chapterCount: 0 }
             ],
             'HT': [
-                { title: 'Roma Antica', chapters: [] },
-                { title: 'Firenze', chapters: [] },
-                { title: 'Venezia', chapters: [] },
-                { title: 'Ferrara', chapters: [] }
+                { id: 1, title: 'Roma Antica', chapterCount: 0 },
+                { id: 2, title: 'Firenze', chapterCount: 0 },
+                { id: 3, title: 'Venezia', chapterCount: 0 },
+                { id: 4, title: 'Ferrara', chapterCount: 0 }
             ],
             'FB': [
-                { title: 'Castello di Azzurrina', chapters: [] },
-                { title: 'Fantasmi di Ferrara', chapters: [] },
-                { title: 'Lupo Mannaro', chapters: [] },
-                { title: 'Streghe di Benevento', chapters: [] }
+                { id: 1, title: 'Castello di Azzurrina', chapterCount: 0 },
+                { id: 2, title: 'Fantasmi di Ferrara', chapterCount: 0 },
+                { id: 3, title: 'Lupo Mannaro', chapterCount: 0 },
+                { id: 4, title: 'Streghe di Benevento', chapterCount: 0 }
             ]
         };
 
@@ -184,37 +187,30 @@
 
         function toggleLanguage() {
             currentLang = (currentLang === 'en') ? 'it' : 'en';
-            
             const elements = document.querySelectorAll('[data-i18n]');
             for (let i = 0; i < elements.length; i++) {
                 const key = elements[i].getAttribute('data-i18n');
                 elements[i].innerText = dictionary[currentLang][key];
             }
-            
             document.getElementById('searchInput').placeholder = dictionary[currentLang]['search-ph'];
             updateMusicButtonsText();
             document.getElementById('btn-prev').innerHTML = dictionary[currentLang]['prev'];
             document.getElementById('btn-next').innerHTML = dictionary[currentLang]['next'];
             
             if(document.getElementById('volume-screen').classList.contains('active')) {
-                if (currentActiveVolume !== null) {
-                    openVolume(currentActiveVolume, false); // false evita di far ripartire l'audio se si cambia lingua
-                }
+                if (currentActiveVolume !== null) { openVolume(currentActiveVolume, false); }
             }
         }
 
         function goToScreen(screenId) {
-            // Annulla il timeout se si esce dalla pagina del volume prima dei 2 secondi
             if (autoPlayTimeout !== null) {
                 clearTimeout(autoPlayTimeout);
                 autoPlayTimeout = null;
             }
-            narratorAudio.pause(); // Ferma la voce se si cambia schermata
+            narratorAudio.pause(); 
             
             const screens = document.querySelectorAll('.screen');
-            for (let i = 0; i < screens.length; i++) {
-                screens[i].classList.remove('active');
-            }
+            for (let i = 0; i < screens.length; i++) { screens[i].classList.remove('active'); }
             document.getElementById(screenId).classList.add('active');
             
             if (screenId === 'home-screen' && isMusicPlaying) {
@@ -244,13 +240,10 @@
         // DUCKING & AUTO-ADVANCE
         narratorAudio.addEventListener('play', function() { bgMusic.volume = 0.15; });
         narratorAudio.addEventListener('pause', function() { bgMusic.volume = 1.0; });
-        
         narratorAudio.addEventListener('ended', function() {
-            // Se l'audio finisce, controlla se c'è un capitolo successivo
             if (currentActiveVolume !== null && currentChapterIndex + 1 < currentActiveVolume.chapters.length) {
                 playChapter(currentChapterIndex + 1);
             } else {
-                // Se è finito l'ultimo capitolo, riporta la musica al 100%
                 bgMusic.volume = 1.0; 
             }
         });
@@ -258,7 +251,6 @@
         function openCategory(cat) {
             currentCategory = cat;
             currentPage = 0;
-            
             const catScreen = document.getElementById('category-screen');
             catScreen.style.backgroundImage = 'url("' + categoryBackgrounds[cat] + '")';
             catScreen.style.backgroundColor = '#1a1a1a';
@@ -319,7 +311,7 @@
             renderGrid();
         }
 
-        // LOGICA SINGOLO VOLUME & AUTOPLAY
+        // LOGICA SINGOLO VOLUME & GENERAZIONE NOMI FILE
         function openVolume(vol, shouldAutoPlay) {
             currentActiveVolume = vol;
             document.getElementById('vol-title').innerText = vol.title;
@@ -331,14 +323,21 @@
                 clearTimeout(autoPlayTimeout);
                 autoPlayTimeout = null;
             }
+
+            // CREAZIONE AUTOMATICA ARRAY CAPITOLI
+            // Es: Se categoria = 'HF', id = 1, chapterCount = 4 -> Crea HF1_cap1.mp3, HF1_cap2.mp3, ecc.
+            currentActiveVolume.chapters = [];
+            for (let i = 1; i <= vol.chapterCount; i++) {
+                currentActiveVolume.chapters.push(currentCategory + vol.id + '_cap' + i + '.mp3');
+            }
             
-            if (vol.chapters.length === 0) {
+            if (currentActiveVolume.chapters.length === 0) {
                 list.innerHTML = "<div style='text-align:center; color:white;'>" + dictionary[currentLang]['no-chap'] + "</div>";
             } else {
-                for (let i = 0; i < vol.chapters.length; i++) {
+                for (let i = 0; i < currentActiveVolume.chapters.length; i++) {
                     const btn = document.createElement('button');
                     btn.className = 'chapter-btn';
-                    btn.id = 'btn-cap-' + i; // ID per evidenziare quello in riproduzione
+                    btn.id = 'btn-cap-' + i; 
                     btn.innerText = dictionary[currentLang]['play-chap'] + (i + 1);
                     btn.onclick = (function(idx) { 
                         return function() { 
@@ -349,7 +348,6 @@
                     list.appendChild(btn);
                 }
                 
-                // AUTOPLAY: Fai partire il primo capitolo dopo 2 secondi
                 if (shouldAutoPlay) {
                     autoPlayTimeout = setTimeout(function() {
                         playChapter(0);
@@ -366,7 +364,6 @@
             currentChapterIndex = index;
             const audioSrc = currentActiveVolume.chapters[index];
             
-            // Rimuovi l'evidenziazione da tutti i bottoni e la metti a quello corrente
             const allBtns = document.querySelectorAll('.chapter-btn');
             for (let i = 0; i < allBtns.length; i++) { allBtns[i].classList.remove('playing'); }
             
@@ -375,7 +372,7 @@
 
             narratorAudio.src = audioSrc;
             narratorAudio.play().catch(function(e) {
-                alert("Audio file (" + audioSrc + ") not found. Make sure it's uploaded to GitHub!");
+                alert("File audio (" + audioSrc + ") non trovato. Assicurati di averlo caricato su GitHub!");
             });
         }
     </script>
