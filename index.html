@@ -177,7 +177,6 @@
         const categoryBackgrounds = {
             'HF': 'LibrarHF.png', 
             'HT': 'LibrarHT.png', 
-            'LibraryFB': 'LibraryFB.png',
             'FB': 'LibraryFB.png'
         };
 
@@ -204,7 +203,7 @@
                 autoPlayTimeout = null;
             }
             narratorAudio.pause(); 
-            bgMusic.volume = 1.0; // Riporta la musica a volume pieno se si cambia schermata
+            bgMusic.volume = 1.0; 
             
             const screens = document.querySelectorAll('.screen');
             for (let i = 0; i < screens.length; i++) { screens[i].classList.remove('active'); }
@@ -234,12 +233,11 @@
             if (isMusicPlaying) { bgMusic.play(); } else { bgMusic.pause(); }
         }
 
-        // GESTIONE FINE CAPITOLO (PLAYLIST AUTOMATICA)
         narratorAudio.addEventListener('ended', function() {
             if (currentActiveVolume !== null && currentChapterIndex + 1 < currentActiveVolume.chapters.length) {
                 playChapter(currentChapterIndex + 1);
             } else {
-                bgMusic.volume = 1.0; // Torna al 100% solo alla fine dell'ultimo capitolo
+                bgMusic.volume = 1.0; 
             }
         });
 
@@ -369,7 +367,6 @@
             currentChapterIndex = index;
             const audioSrc = currentActiveVolume.chapters[index];
             
-            // DUCKING FORZATO: Abbassa la musica di sottofondo istantaneamente
             if (isMusicPlaying) {
                 bgMusic.volume = 0.15;
             }
