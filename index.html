@@ -25,9 +25,30 @@
         .main-btn:active { transform: scale(0.95); }
         #lang-toggle { position: absolute; top: 20px; right: 20px; z-index: 15; }
 
-        /* Contenitore Pulsanti Enter Screen (SCORRIMENTO RISOLTO) */
-        .category-container { display: flex; flex-direction: column; gap: 30px; width: 85%; max-width: 400px; margin-top: 80px; margin-bottom: 20px; overflow-y: auto; max-height: 75vh; padding: 10px; }
-        .cat-btn { width: 100%; height: auto; min-height: 120px; cursor: pointer; border-radius: 15px; border: 2px solid #d4af37; box-shadow: 0 5px 15px rgba(0,0,0,0.9); }
+        /* Contenitore Pulsanti Enter Screen (LAYOUT A PIRAMIDE ROVESCIATA: 2 SOPRA, 1 CENTRATO SOTTO) */
+        .category-container { 
+            display: flex; 
+            flex-wrap: wrap; /* Permette alle immagini di andare a capo */
+            justify-content: center; /* Centra gli elementi nella riga */
+            gap: 15px; 
+            width: 90%; 
+            max-width: 450px; 
+            margin-top: 80px; 
+            margin-bottom: 20px; 
+            overflow-y: auto; 
+            max-height: 80vh; 
+            padding: 10px; 
+        }
+        .cat-btn { 
+            width: calc(50% - 10px); /* Prende metà schermo meno lo spazio in mezzo */
+            aspect-ratio: 9 / 16; /* FORZA la proporzione perfetta originale! */
+            object-fit: cover; /* Ritaglia eventuali sbordature senza schiacciare mai l'immagine */
+            cursor: pointer; 
+            border-radius: 15px; 
+            border: 2px solid #d4af37; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.9); 
+            transition: transform 0.2s;
+        }
         .cat-btn:active { transform: scale(0.95); }
 
         /* Griglia Volumi */
@@ -274,7 +295,7 @@
             currentCategory = cat;
             currentPage = 0;
             
-            // FORZATURA DEL BACKGROUND (Problema N.2 Risolto)
+            // FORZATURA DEL BACKGROUND
             const catScreen = document.getElementById('category-screen');
             catScreen.style.backgroundImage = 'url("' + categoryBackgrounds[cat] + '")';
             catScreen.style.backgroundColor = '#1a1a1a'; // Fallback scuro in caso di caricamento lento
