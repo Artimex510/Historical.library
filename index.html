@@ -25,29 +25,16 @@
         .main-btn:active { transform: scale(0.95); }
         #lang-toggle { position: absolute; top: 20px; right: 20px; z-index: 15; }
 
-        /* Contenitore Pulsanti Enter Screen (LAYOUT A PIRAMIDE ROVESCIATA: 2 SOPRA, 1 CENTRATO SOTTO) */
+        /* Contenitore Pulsanti Enter Screen (LAYOUT 2 SOPRA, 1 CENTRATO SOTTO) */
         .category-container { 
-            display: flex; 
-            flex-wrap: wrap; /* Permette alle immagini di andare a capo */
-            justify-content: center; /* Centra gli elementi nella riga */
-            gap: 15px; 
-            width: 90%; 
-            max-width: 450px; 
-            margin-top: 80px; 
-            margin-bottom: 20px; 
-            overflow-y: auto; 
-            max-height: 80vh; 
-            padding: 10px; 
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; 
+            width: 90%; max-width: 450px; margin-top: 80px; margin-bottom: 20px; 
+            overflow-y: auto; max-height: 80vh; padding: 10px; 
         }
         .cat-btn { 
-            width: calc(50% - 10px); /* Prende metà schermo meno lo spazio in mezzo */
-            aspect-ratio: 9 / 16; /* FORZA la proporzione perfetta originale! */
-            object-fit: cover; /* Ritaglia eventuali sbordature senza schiacciare mai l'immagine */
-            cursor: pointer; 
-            border-radius: 15px; 
-            border: 2px solid #d4af37; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.9); 
-            transition: transform 0.2s;
+            width: calc(50% - 10px); aspect-ratio: 9 / 16; object-fit: cover; 
+            cursor: pointer; border-radius: 15px; border: 2px solid #d4af37; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.9); transition: transform 0.2s;
         }
         .cat-btn:active { transform: scale(0.95); }
 
@@ -68,6 +55,7 @@
         
         .chapter-list { width: 90%; max-width: 400px; overflow-y: auto; max-height: 45vh; display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
         .chapter-btn { width: 100%; padding: 15px; background: rgba(212, 175, 55, 0.2); color: #fff; border: 1px solid #d4af37; border-radius: 8px; cursor: pointer; font-family: 'Georgia', serif; font-size: 1.1rem; transition: background 0.3s; text-align: left; }
+        .chapter-btn.playing { background: rgba(212, 175, 55, 0.7); font-weight: bold; }
         .chapter-btn:active { background: rgba(212, 175, 55, 0.5); }
     </style>
 </head>
@@ -89,7 +77,7 @@
         </div>
     </div>
 
-    <!-- 3. Enter Screen (Scelta Librerie) -->
+    <!-- 3. Enter Screen -->
     <div id="enter-screen" class="screen">
         <div class="top-bar">
             <button class="icon-btn" onclick="goToScreen('home-screen')" data-i18n="back">Back</button>
@@ -102,7 +90,7 @@
         </div>
     </div>
 
-    <!-- 4. Category Screen (Dentro una specifica libreria) -->
+    <!-- 4. Category Screen -->
     <div id="category-screen" class="screen">
         <div class="top-bar">
             <button class="icon-btn" onclick="goToScreen('enter-screen')" data-i18n="back">Back</button>
@@ -114,9 +102,7 @@
             <button class="icon-btn" onclick="searchVolumes()" data-i18n="search-btn">Search</button>
         </div>
         
-        <div id="volume-grid" class="grid-container">
-            <!-- I volumi appariranno qui tramite JavaScript -->
-        </div>
+        <div id="volume-grid" class="grid-container"></div>
         
         <div class="pagination">
             <button class="icon-btn" onclick="changePage(-1)" id="btn-prev">&#8592; Prev Page</button>
@@ -124,7 +110,7 @@
         </div>
     </div>
 
-    <!-- 5. Volume Screen (Audiobook Player) -->
+    <!-- 5. Volume Screen -->
     <div id="volume-screen" class="screen">
         <div class="top-bar">
             <button class="icon-btn" onclick="goToScreen('category-screen')" data-i18n="back">Back</button>
@@ -134,127 +120,42 @@
         <div id="vol-cover" class="vol-large-img"></div>
         <div class="vol-title-text" id="vol-title">Volume Title</div>
         
-        <div id="chapter-list" class="chapter-list">
-            <!-- I capitoli appariranno qui tramite JavaScript -->
-        </div>
+        <div id="chapter-list" class="chapter-list"></div>
     </div>
 
     <script>
-        // --- GESTIONE LINGUA (BILINGUAL) ---
-        let currentLang = 'en'; // Default è Inglese
+        // Variabili globali per l'audio e l'autoplay
+        let autoPlayTimeout = null;
+        let currentChapterIndex = 0;
+        let isMusicPlaying = true;
+        let currentLang = 'en'; 
+        let currentCategory = '';
+        let currentPage = 0;
+        let filteredVolumes = [];
+        let currentActiveVolume = null;
+
+        const bgMusic = document.getElementById('bg-music');
+        const narratorAudio = document.getElementById('narrator-audio');
         
         const dictionary = {
             'en': {
-                'enter': 'Enter',
-                'exit': 'Exit',
-                'back': 'Back',
-                'music-on': 'Music: ON',
-                'music-off': 'Music: OFF',
-                'search-ph': 'Search volumes by title...',
-                'search-btn': 'Search',
-                'prev': '&#8592; Prev Page',
-                'next': 'Next Page &#8594;',
-                'no-chap': 'Chapters coming soon...',
-                'play-chap': '▶ Listen to Chapter ',
+                'enter': 'Enter', 'exit': 'Exit', 'back': 'Back',
+                'music-on': 'Music: ON', 'music-off': 'Music: OFF',
+                'search-ph': 'Search volumes by title...', 'search-btn': 'Search',
+                'prev': '&#8592; Prev Page', 'next': 'Next Page &#8594;',
+                'no-chap': 'Chapters coming soon...', 'play-chap': '▶ Chapter ',
                 'alert-exit': 'App is in Web version. Close the browser tab to exit.'
             },
             'it': {
-                'enter': 'Entra',
-                'exit': 'Esci',
-                'back': 'Indietro',
-                'music-on': 'Musica: ON',
-                'music-off': 'Musica: OFF',
-                'search-ph': 'Cerca volumi per titolo...',
-                'search-btn': 'Cerca',
-                'prev': '&#8592; Pag Precedente',
-                'next': 'Pag Successiva &#8594;',
-                'no-chap': 'Capitoli in arrivo...',
-                'play-chap': '▶ Ascolta Capitolo ',
+                'enter': 'Entra', 'exit': 'Esci', 'back': 'Indietro',
+                'music-on': 'Musica: ON', 'music-off': 'Musica: OFF',
+                'search-ph': 'Cerca volumi per titolo...', 'search-btn': 'Cerca',
+                'prev': '&#8592; Pag Precedente', 'next': 'Pag Successiva &#8594;',
+                'no-chap': 'Capitoli in arrivo...', 'play-chap': '▶ Capitolo ',
                 'alert-exit': "L'app è in versione Web. Chiudi la scheda del browser per uscire."
             }
         };
 
-        function toggleLanguage() {
-            currentLang = (currentLang === 'en') ? 'it' : 'en';
-            
-            // Aggiorna tutti gli elementi con data-i18n (Bottoni)
-            const elements = document.querySelectorAll('[data-i18n]');
-            for (let i = 0; i < elements.length; i++) {
-                const key = elements[i].getAttribute('data-i18n');
-                elements[i].innerText = dictionary[currentLang][key];
-            }
-            
-            // Aggiorna Placeholder della barra di ricerca
-            const searchInput = document.getElementById('searchInput');
-            searchInput.placeholder = dictionary[currentLang]['search-ph'];
-            
-            // Aggiorna tasti musicali
-            updateMusicButtonsText();
-            
-            // Aggiorna bottoni paginazione
-            document.getElementById('btn-prev').innerHTML = dictionary[currentLang]['prev'];
-            document.getElementById('btn-next').innerHTML = dictionary[currentLang]['next'];
-            
-            // Ricarica la lista capitoli se siamo dentro a un volume
-            if(document.getElementById('volume-screen').classList.contains('active')) {
-                // Aggiornamento testuale forzato (ricreando la lista)
-                if (currentActiveVolume !== null) {
-                    openVolume(currentActiveVolume);
-                }
-            }
-        }
-
-        // --- GESTIONE SCHERMATE ---
-        function goToScreen(screenId) {
-            document.getElementById('narrator-audio').pause(); // Ferma la voce
-            
-            const screens = document.querySelectorAll('.screen');
-            for (let i = 0; i < screens.length; i++) {
-                screens[i].classList.remove('active');
-            }
-            document.getElementById(screenId).classList.add('active');
-            
-            // Avvia musica se torniamo alla home
-            if (screenId === 'home-screen' && isMusicPlaying) {
-                document.getElementById('bg-music').play().catch(function(e){ console.log("Autoplay bloccato"); });
-            }
-        }
-
-        function exitApp() {
-            alert(dictionary[currentLang]['alert-exit']);
-        }
-
-        setTimeout(function() {
-            if(document.getElementById('intro-screen').classList.contains('active')) {
-                goToScreen('home-screen');
-            }
-        }, 5000);
-
-
-        // --- GESTIONE MUSICA (DUCING) ---
-        let isMusicPlaying = true;
-        const bgMusic = document.getElementById('bg-music');
-        const narratorAudio = document.getElementById('narrator-audio');
-
-        function updateMusicButtonsText() {
-            const btns = document.querySelectorAll('.music-toggle');
-            for (let i = 0; i < btns.length; i++) {
-                btns[i].innerText = isMusicPlaying ? dictionary[currentLang]['music-on'] : dictionary[currentLang]['music-off'];
-            }
-        }
-
-        function toggleMusic() {
-            isMusicPlaying = !isMusicPlaying;
-            updateMusicButtonsText();
-            if (isMusicPlaying) { bgMusic.play(); } else { bgMusic.pause(); }
-        }
-
-        narratorAudio.addEventListener('play', function() { bgMusic.volume = 0.15; });
-        narratorAudio.addEventListener('pause', function() { bgMusic.volume = 1.0; });
-        narratorAudio.addEventListener('ended', function() { bgMusic.volume = 1.0; });
-
-
-        // --- DATABASE VOLUMI ---
         const database = {
             'HF': [
                 { title: 'Alfonso I d\'Este', chapters: ['HF_volume1_cap1.mp3', 'HF_volume1_cap2.mp3', 'HF_volume1_cap3.mp3', 'HF_volume1_cap4.mp3'] },
@@ -278,33 +179,93 @@
         };
 
         const categoryBackgrounds = {
-            'HF': 'LibrarHF.png',
-            'HT': 'LibrarHT.png',
-            'FB': 'LibraryFB.png'
+            'HF': 'LibrarHF.png', 'HT': 'LibrarHT.png', 'FB': 'LibraryFB.png'
         };
 
+        function toggleLanguage() {
+            currentLang = (currentLang === 'en') ? 'it' : 'en';
+            
+            const elements = document.querySelectorAll('[data-i18n]');
+            for (let i = 0; i < elements.length; i++) {
+                const key = elements[i].getAttribute('data-i18n');
+                elements[i].innerText = dictionary[currentLang][key];
+            }
+            
+            document.getElementById('searchInput').placeholder = dictionary[currentLang]['search-ph'];
+            updateMusicButtonsText();
+            document.getElementById('btn-prev').innerHTML = dictionary[currentLang]['prev'];
+            document.getElementById('btn-next').innerHTML = dictionary[currentLang]['next'];
+            
+            if(document.getElementById('volume-screen').classList.contains('active')) {
+                if (currentActiveVolume !== null) {
+                    openVolume(currentActiveVolume, false); // false evita di far ripartire l'audio se si cambia lingua
+                }
+            }
+        }
 
-        // --- LOGICA LIBRERIA ---
-        let currentCategory = '';
-        let currentPage = 0;
-        const itemsPerPage = 9;
-        let filteredVolumes = [];
-        let currentActiveVolume = null;
+        function goToScreen(screenId) {
+            // Annulla il timeout se si esce dalla pagina del volume prima dei 2 secondi
+            if (autoPlayTimeout !== null) {
+                clearTimeout(autoPlayTimeout);
+                autoPlayTimeout = null;
+            }
+            narratorAudio.pause(); // Ferma la voce se si cambia schermata
+            
+            const screens = document.querySelectorAll('.screen');
+            for (let i = 0; i < screens.length; i++) {
+                screens[i].classList.remove('active');
+            }
+            document.getElementById(screenId).classList.add('active');
+            
+            if (screenId === 'home-screen' && isMusicPlaying) {
+                bgMusic.play().catch(function(e){ console.log("Autoplay bloccato"); });
+            }
+        }
+
+        function exitApp() { alert(dictionary[currentLang]['alert-exit']); }
+
+        setTimeout(function() {
+            if(document.getElementById('intro-screen').classList.contains('active')) { goToScreen('home-screen'); }
+        }, 5000);
+
+        function updateMusicButtonsText() {
+            const btns = document.querySelectorAll('.music-toggle');
+            for (let i = 0; i < btns.length; i++) {
+                btns[i].innerText = isMusicPlaying ? dictionary[currentLang]['music-on'] : dictionary[currentLang]['music-off'];
+            }
+        }
+
+        function toggleMusic() {
+            isMusicPlaying = !isMusicPlaying;
+            updateMusicButtonsText();
+            if (isMusicPlaying) { bgMusic.play(); } else { bgMusic.pause(); }
+        }
+
+        // DUCKING & AUTO-ADVANCE
+        narratorAudio.addEventListener('play', function() { bgMusic.volume = 0.15; });
+        narratorAudio.addEventListener('pause', function() { bgMusic.volume = 1.0; });
+        
+        narratorAudio.addEventListener('ended', function() {
+            // Se l'audio finisce, controlla se c'è un capitolo successivo
+            if (currentActiveVolume !== null && currentChapterIndex + 1 < currentActiveVolume.chapters.length) {
+                playChapter(currentChapterIndex + 1);
+            } else {
+                // Se è finito l'ultimo capitolo, riporta la musica al 100%
+                bgMusic.volume = 1.0; 
+            }
+        });
 
         function openCategory(cat) {
             currentCategory = cat;
             currentPage = 0;
             
-            // FORZATURA DEL BACKGROUND
             const catScreen = document.getElementById('category-screen');
             catScreen.style.backgroundImage = 'url("' + categoryBackgrounds[cat] + '")';
-            catScreen.style.backgroundColor = '#1a1a1a'; // Fallback scuro in caso di caricamento lento
+            catScreen.style.backgroundColor = '#1a1a1a';
             
             let vols = [];
             if (database !== null && database !== undefined) {
-                if (database[cat] !== null && database[cat] !== undefined) {
-                    vols = database[cat];
-                }
+                if (database[cat] !== null && database[cat] !== undefined) { vols = database[cat]; }
             }
             filteredVolumes = vols;
             
@@ -316,24 +277,22 @@
         function renderGrid() {
             const grid = document.getElementById('volume-grid');
             grid.innerHTML = '';
-            
-            const start = currentPage * itemsPerPage;
-            const end = start + itemsPerPage;
+            const start = currentPage * 9;
+            const end = start + 9;
             const pageItems = filteredVolumes.slice(start, end);
             
             for (let i = 0; i < pageItems.length; i++) {
                 const vol = pageItems[i];
                 const div = document.createElement('div');
                 div.className = 'volume-card';
-                div.onclick = (function(v) { return function() { openVolume(v); }; })(vol);
-                
+                div.onclick = (function(v) { return function() { openVolume(v, true); }; })(vol);
                 div.innerHTML = "<div class='volume-placeholder'>" + vol.title + "</div>";
                 grid.appendChild(div);
             }
         }
 
         function changePage(dir) {
-            const maxPage = Math.ceil(filteredVolumes.length / itemsPerPage) - 1;
+            const maxPage = Math.ceil(filteredVolumes.length / 9) - 1;
             let newPage = currentPage + dir;
             if (newPage < 0) newPage = 0;
             if (newPage > maxPage) newPage = Math.max(0, maxPage);
@@ -348,9 +307,7 @@
             const query = document.getElementById('searchInput').value.toLowerCase();
             let allCatVols = [];
             if (database !== null && database !== undefined) {
-                if (database[currentCategory] !== null && database[currentCategory] !== undefined) {
-                    allCatVols = database[currentCategory];
-                }
+                if (database[currentCategory] !== null && database[currentCategory] !== undefined) { allCatVols = database[currentCategory]; }
             }
             filteredVolumes = [];
             for (let i = 0; i < allCatVols.length; i++) {
@@ -362,47 +319,63 @@
             renderGrid();
         }
 
-        // --- GESTIONE SWIPE ---
-        let touchstartX = 0;
-        let touchendX = 0;
-        const catScreen = document.getElementById('category-screen');
-
-        catScreen.addEventListener('touchstart', function(event) {
-            touchstartX = event.changedTouches[0].screenX;
-        }, false);
-        catScreen.addEventListener('touchend', function(event) {
-            touchendX = event.changedTouches[0].screenX;
-            if (touchendX < touchstartX - 50) { changePage(1); }
-            if (touchendX > touchstartX + 50) { changePage(-1); }
-        }, false);
-
-        // --- LOGICA SINGOLO VOLUME ---
-        function openVolume(vol) {
-            currentActiveVolume = vol; // Memorizza volume attuale per i cambi lingua
+        // LOGICA SINGOLO VOLUME & AUTOPLAY
+        function openVolume(vol, shouldAutoPlay) {
+            currentActiveVolume = vol;
             document.getElementById('vol-title').innerText = vol.title;
             
             const list = document.getElementById('chapter-list');
             list.innerHTML = '';
             
+            if (autoPlayTimeout !== null) {
+                clearTimeout(autoPlayTimeout);
+                autoPlayTimeout = null;
+            }
+            
             if (vol.chapters.length === 0) {
                 list.innerHTML = "<div style='text-align:center; color:white;'>" + dictionary[currentLang]['no-chap'] + "</div>";
             } else {
                 for (let i = 0; i < vol.chapters.length; i++) {
-                    const capSrc = vol.chapters[i];
                     const btn = document.createElement('button');
                     btn.className = 'chapter-btn';
+                    btn.id = 'btn-cap-' + i; // ID per evidenziare quello in riproduzione
                     btn.innerText = dictionary[currentLang]['play-chap'] + (i + 1);
-                    btn.onclick = (function(src) { return function() { playChapter(src); }; })(capSrc);
+                    btn.onclick = (function(idx) { 
+                        return function() { 
+                            if(autoPlayTimeout !== null) clearTimeout(autoPlayTimeout);
+                            playChapter(idx); 
+                        }; 
+                    })(i);
                     list.appendChild(btn);
+                }
+                
+                // AUTOPLAY: Fai partire il primo capitolo dopo 2 secondi
+                if (shouldAutoPlay) {
+                    autoPlayTimeout = setTimeout(function() {
+                        playChapter(0);
+                    }, 2000);
                 }
             }
             goToScreen('volume-screen');
         }
 
-        function playChapter(audioSrc) {
+        function playChapter(index) {
+            if (currentActiveVolume === null) return;
+            if (index >= currentActiveVolume.chapters.length) return;
+            
+            currentChapterIndex = index;
+            const audioSrc = currentActiveVolume.chapters[index];
+            
+            // Rimuovi l'evidenziazione da tutti i bottoni e la metti a quello corrente
+            const allBtns = document.querySelectorAll('.chapter-btn');
+            for (let i = 0; i < allBtns.length; i++) { allBtns[i].classList.remove('playing'); }
+            
+            const activeBtn = document.getElementById('btn-cap-' + index);
+            if (activeBtn !== null) activeBtn.classList.add('playing');
+
             narratorAudio.src = audioSrc;
             narratorAudio.play().catch(function(e) {
-                alert("File audio (" + audioSrc + ") non trovato. Assicurati di averlo caricato su GitHub!");
+                alert("Audio file (" + audioSrc + ") not found. Make sure it's uploaded to GitHub!");
             });
         }
     </script>
